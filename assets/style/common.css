@@ -1,0 +1,50 @@
+/* CSS Document */
+/* table-head-bg-success 의 tfoot Style 동일하게 추가 */
+
+.page-title { 
+  color: #D8D8E0;
+}
+
+.table-head-bg-success thead th, .table-striped-bg-success tbody tr:nth-of-type(odd) {
+  background: #3B6A8E !important;
+  color: #ffffff !important;
+  border: 0px !important; }
+
+.table-head-bg-info thead th, .table-striped-bg-info tbody tr:nth-of-type(odd) {
+  background: #3B6A8E !important;
+  color: #ffffff !important;
+ }
+  
+.table-head-bg-info thead {
+  border: 1px solid #3B6A8E !important; }
+
+.table td { }
+.table td.pointer { cursor:pointer; } 
+
+.table-detail { border: 1px solid #2F374B !important; }
+.table-detail th { text-align:center; height:40px; background-color:#3B6A8E; color:#fff; border: 1px solid #202940 !important;}
+.table-detail td { }
+
+.table-detail-sub {}
+.table-detail-sub thead th, .table-detail-sub tbody th {
+  background: #647C8E !important;
+  text-align: left;
+}
+.table-detail-sub tbody tr td.form-group label { float:left; }
+.table-detail-sub tbody tr td div { float:left; }
+
+
+.table-search tr { height:30px; }
+.table-search tr th { border:none; height:30px; text-align:right; }
+.table-search tr td { border:none; height:30px;  }
+
+.search_box th { color:#F5EA05; }
+/*
+.search_box { 
+  width:96% !important; height:150px; border:4px solid #79A7CB; padding:0; margin-left:20px; overflow:hidden; border-radius:10px;
+}
+*/
+
+#notifications {
+    z-index: 999999999999999999999999999999999999;
+}
