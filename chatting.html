@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+  <head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Script-Type" content="text/javascript">
+	<meta http-equiv="Content-Style-Type" content="text/css">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <title>챗방</title>
+	<link rel="shortcut icon" href="#">
+	<link rel="stylesheet" href="./style.css">
+	<script src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
+    <script src="/node_modules/socket.io-client/dist/socket.io.js"></script>
+    <script src="/common/common.js"></script>
+    <script>
+	var socket = io.connect('http://13.231.34.112:52273/namespace2');
+	var contents;
+	var roomId;
+	var user_type;
+	var user_pk;
+	var user_id;
+	var user_name;
+	var user = new Array();
+
+	$(document).ready(function() {
+
+		user_type =  getParameters('user_type'); 
+		user_id =  getParameters('user_id'); 
+		roomId =  getParameters('room_id');
+
+		console.log('my_user_type : ' + user_type);
+		console.log('my_user_id : ' + user_id);
+		console.log('my_roomId : ' + roomId);
+	
+		// 유저 정보 요청
+		socket.emit("userInfo", {
+			  'user_type' : user_type,
+			  'user_id' : user_id,
+			  'roomId' : roomId
+		});
+	});
+
+	$(function(){
+	
+		/****************************************
+		*			유저 정보 result				*
+		****************************************/
+		socket.on("userInfo_res", function(data) {
+			console.log('event.userInfo_res2');
+			console.log(data);
+
+///*/
+			user.push({
+				'user_type' : user_type,			// 계정 타입 (1 : 디온 관리자, 2 : 가맹점 관리자)
+///*/
+				'user_pk' : data[0]['pk'],			// 계정 pk
+				'user_id' : user_id,				// 계정 id
+				'user_name' : data[0]['name'],		// 계정 이름
+				'roomId' : roomId,					// 방 ID (tbl_client pk)
+				'room_name' : data[0]['room_name'],	// 방 이름
+			});
+			
+			//console.log('--- user info -----');
+			//console.log('my userInfo pk : ' + data[0]['pk']);
+			//console.log('my userInfo name : ' + data[0]['name']);
+			//console.log('roomId : ' + roomId);
+			//console.log('room_name : ' + data[0]['room_name']);
+			
+			// UTC timestamp 구하기
+			var fetch_unix_timestamp = function() {
+				return Math.floor(new Date().getTime() / 1000);
+			}
+			var timestamp = fetch_unix_timestamp();
+
+			//console.log('---------' + timestamp);
+			//console.log('------------------' + user[0]['user_name']);
+
+			// 방 입장
+			socket.emit("roomJoin", {
+///*/
+				//'room_pk' : user[0]['room_pk'],
+				'roomId' : user[0]['roomId'],
+				'roomName' : user[0]['room_name'],
+				'user_type' : user[0]['user_type'],
+				'user_pk' : user[0]['user_pk'],
+				'user_id' : user[0]['user_id'],
+				'user_name' : user[0]['user_name'],
+				'date' : timestamp
+			});
+			
+			$("#roomId").val(roomId);
+			$('#roomName_txt').html(data[0]['room_name']);
+		});
+
+		/****************************************
+		*				채팅방 입장					*
+		****************************************/
+        socket.on("new enter", function(data) {
+			
+			console.log('event.new enter');
+
+			user[0]['room_pk'] = data.room_pk;
+            //$("#userCount_txt").html(data.count);
+			$('#roomName_txt').html(data.roomName);
+			
+			//$('#chatList').before('<li class="sys_msg">' + data.sysMsg + '</li>');
+			//$('#chatWindow').scrollTop($('#chatWindow')[0].scrollHeight);
+        });
+
+		/****************************************
+		*			채팅 히스토리 수신 => Draw		*
+		****************************************/
+/****/
+		var msg2;
+		socket.on('receive history', function(pk, rs){	// room_pk, history result
+			
+			console.log('event.receive history');
+			console.log(pk);
+
+			user[0]['room_pk'] = pk;
+
+			if (rs.length > 0) {
+				for ( var i=0; i<rs.length; i++ ) {
+					
+					msg2 = rs[i]['cLog_message'].replace(/(?:\r\n|\r|\n)/g, '<br>');
+					
+/****/
+					if (rs[i]['cLog_msgType'] == 'S') {
+
+						$('#chatList').before('<li class="sys_msg">' + msg2 + '</li>');
+
+					} else {
+				
+						if (user[0]['user_name'] == rs[i]['cLog_userNickname']) {
+							$('#chatList').before('<li class="my_msg">' + msg2 + '</li>');
+							$('#chatList').before('<li class="my_time">' + rs[i]['kst_time'] + '</li>');
+						} else { 
+							$('#chatList').before('<li class="recep_nick">' + rs[i]['cLog_userNickname'] + '</li>');
+							$('#chatList').before('<li class="recep_msg">' + msg2 + '</li>');
+							$('#chatList').before('<li class="recep_time">' + rs[i]['kst_time'] + '</li>');
+						}
+					}
+				}
+			}
+			
+			$('#chatWindow').scrollTop($('#chatWindow')[0].scrollHeight);
+		});
+
+		/****************************************
+		*				메세지 수신					*
+		****************************************/
+		socket.on('receive message', function(rs){
+			
+			console.log('receive message : ' + user[0]['user_name'] + ', ' + rs[0]['sendUser']);
+			if (user[0]['user_name'] == rs[0]['sendUser']) {
+				$('#chatList').before('<li class="my_msg">' + rs[0]['msg'] + '</li>');
+			} else { 
+				$('#chatList').before('<li class="recep_nick">' + rs[0]['sendUser'] + '</li>');
+				$('#chatList').before('<li class="recep_msg">' + rs[0]['msg'] + '</li>');
+			}
+			$('#chatWindow').scrollTop($('#chatWindow')[0].scrollHeight);
+		});
+		
+		/****************************************
+		*				메세지 발신					*
+		****************************************/
+		$('#chat').on('submit', function(e){
+			
+			// UTC timestamp 구하기
+			var fetch_unix_timestamp = function() {
+				return Math.floor(new Date().getTime() / 1000);
+			}
+			var timestamp = fetch_unix_timestamp();
+
+// console.log('room_pk : ' + user[0]['room_pk']);
+			// event.메세지 발신
+			socket.emit("send message", {
+///*/
+				'room_pk' : user[0]['room_pk'],
+				'roomId' : user[0]['roomId'],
+				'msgType' : 'G',
+				'user_type' : user[0]['user_type'],
+				'roomName' :  user[0]['roomName'],
+				'user_pk' : user[0]['user_pk'],
+				'user_id' : user[0]['user_id'],
+				'user_name' : user[0]['user_name'],
+				'message' : $("#message").val(),
+				'date' : timestamp
+            });
+
+			//$('#chatList').before('<li class="my_msg">' + $('#message').val() + '</li>');
+			//$('#chatWindow').scrollTop($('#chatWindow')[0].scrollHeight);
+
+			$('#message').val("");
+			$("#message").focus();
+			e.preventDefault();
+		});
+		
+		$('textarea').on('keydown', function(event) {
+			if (event.keyCode == 13) {
+				console.log( event.keyCode);
+				if (!event.shiftKey) {
+					console.log('enter');
+					event.preventDefault();
+					$('#chat').trigger('submit');
+				}
+			}
+		});
+
+		/****************************************
+		*				방 퇴장 요청				*
+		****************************************/
+		$('#exit_room').on('click', function(event) {
+				
+			console.log('event-exit roomId : ' + user[0]['roomId'] + ', user_type : ' + user[0]['user_type'] + ', user_pk : ' + user[0]['user_pk'] + ', user_id : ' + user[0]['user_id']);
+			
+			// UTC timestamp 구하기
+			var fetch_unix_timestamp = function() {
+				return Math.floor(new Date().getTime() / 1000);
+			}
+			var timestamp = fetch_unix_timestamp();
+
+			// event.메세지 발신
+			socket.emit("roomExit", {
+				'exitType' : 'exit',
+				'user_type' : user[0]['user_type'],
+				'user_pk' : user[0]['user_pk'],
+				'user_name' : user[0]['user_name'],
+				'room_pk' : user[0]['room_pk'],
+				'roomId' : user[0]['roomId'],
+				'date' : timestamp,
+			});	
+		});
+		
+		/****************************************
+		*				방 퇴장 성공				*
+		****************************************/
+		socket.on('exit update', function(rs){
+			
+			console.log('exit update : ' + rs[0]['result']);
+
+			if (rs[0]['result'] == true) {
+				socket.close();
+
+				$('#chatList').before('<li class="sys_msg"><span>' + rs[0]['sysMsg'] + '</span></li>');
+				$('#chatWindow').scrollTop($('#chatWindow')[0].scrollHeight);
+
+				/******************************* 개발한 로직에 따라 이전페이지, popup or layout 닫기 처리 요망. */
+				history.go(-1);	
+
+			} else { 
+				alert('퇴장 처리 중 오류가 발생하였습니다. 새로고침 후 다시 시도하여주세요.');
+			}
+		});
+	});
+
+	/****************************
+	*			System Message		*
+	****************************/
+    function pushMessage(pushName, pushMsg, pushDate) {
+
+        // 입력할 문자 메시지
+        var output = "";
+        output += "<li>";
+        output += "<h3>" + pushName + "</h3>";
+        output += "<p class='msg'>" + pushMsg + "</p>";
+        output += "<p>" + pushDate + "</p>";
+        output += "</li>";
+
+        // 문서 객체를 추가합니다.
+        $(output).prependTo("#chatList");
+        $("#chatList").listview('refresh');
+    }
+    </script>
+  </head>
+  <body>
+  	<input type="hidden" name="roomId" id="roomId" value="">
+  	<div id="page_chatting" class="page_chatting">
+        <!-- <h5 style="font-size:20px;font-weight:900;margin:10px 10px;">Golf Booking 실시간 채팅 상담</h5> -->
+		<div id="chatTitle" class="chatTitle">
+			<li style="width:70%;">
+				<h5 id="roomName_txt"></h5>
+			</li>
+			<li style="width:25%; text-align:right;">
+				<h3 id="exit_room" >퇴장하기</h3>
+			</li>
+		</div>
+		<div style="">
+			<div id="chatWindow" class="chatWindow">
+			<ul id="chatList"></ul>
+			</div>
+			<!--<textarea name="chatWindow" id="chatWindow" class="chatWindow"></textarea>-->
+		</div>
+		<!--
+		<div id="name_txt" class="name_txt" style="width:100%; height:25px; clear:both; padding:15px 0 0 20px;">
+		</div>
+		-->
+		<div class="area_message">
+			<form id="chat">
+				<input type="hidden" id="name" value="">
+				<textarea name="message" id="message" class="message" rows="4"></textarea>
+				<input type="submit" class="btn_send" value="전송"/>
+			</form>
+		</div>
+	</div>
+  </body>
+</html>
+
+<script>
+
+$(function(){
+});
+    
+</script>
